@@ -116,7 +116,7 @@ class StickerBuilder:
         # сам текст
         self._draw.text((x, y), text, font=font, fill=fill)
 
-    # возвращает область left, top, right, bottom в которой можно рисовать текст, учитывая отступы и контур
+ 
     def _get_safe_area(self, use_margin: bool) -> Tuple[int, int, int, int]:
         """безопасная область с учётом области текста и контура"""
         base_margin = self.margin if use_margin else 0
@@ -124,14 +124,11 @@ class StickerBuilder:
         safe_inset = max(base_margin, self.outline_width * 2)
         return safe_inset, safe_inset, self.w - safe_inset, self.h - safe_inset
 
-    # подбирает размер шрифта, чтобы текст поместился в заданные ширину и высоту
-    # начинает с initial_size и уменьшает на 2, пока текст не поместится или пока размер не станет 6
     def prepare_font_to_fit(self, lines, initial_size, max_width, max_height):
         size = max(6, initial_size)
         while size > 6:
             font = safe_font(self.default_font, size)
             line_heights = [self._text_size(ln, font)[1] for ln in lines]
-            # Используем множитель для отступа между строк
             line_spacing = max(2, int(size * self.line_spacing_multiplier))
             total_h = sum(line_heights) + line_spacing * max(0, len(lines) - 1)
             max_line_w = max((self._text_size(ln, font)[0] for ln in lines), default=0)
@@ -191,7 +188,6 @@ class StickerBuilder:
         else:
             y_start = top
 
-        # проверяет чтобы текст не выходил за нижнюю границу (не работает почему-то корректно)
         if y_start + total_h > bottom:
             y_start = bottom - total_h
 
@@ -206,18 +202,16 @@ class StickerBuilder:
             else:
                 x = right - lw
 
-            # проверяет чтобы текст не выходил за границы по горизонтали
             x = max(left, min(x, right - lw))
 
             self._draw_outline_text((x, y), ln, font, self.fill_color)
             if i < len(lines) - 1:
-                y += lh + line_spacing  # Используем line_spacing для отступа между строками
+                y += lh + line_spacing
             else:
                 y += lh
 
     def draw_vertical(self, text: str, font_size: int, position: str = "left", use_margin: bool = True):
         """Вертикальное расположение текста с автоматическим уменьшением шрифта для длинных слов"""
-        # Получаем безопасную область с учетом контура
         left, top, right, bottom = self._get_safe_area(use_margin)
         max_h = bottom - top
         max_w = right - left
@@ -225,12 +219,10 @@ class StickerBuilder:
         if max_h <= 0 or max_w <= 0:
             return
 
-        # Разбиваем текст на слова
         words = text.split()
         if not words:
             return
 
-        # Автоматическое уменьшение шрифта если текст не помещается
         initial_size = font_size
         font = None
         final_columns = []
@@ -239,17 +231,15 @@ class StickerBuilder:
             font = safe_font(self.default_font, initial_size)
             line_spacing = int(initial_size * self.line_spacing_multiplier)
 
-            # Проверяем каждое слово на возможность размещения
             word_fits = True
             for word in words:
                 word_height = 0
                 for char in word:
                     char_w, char_h = self._text_size(char, font)
                     word_height += char_h + line_spacing
-                if word:  # Убираем последний лишний отступ
+                if word:
                     word_height -= line_spacing
 
-                # Если хотя бы одно слово не помещается по высоте - уменьшаем шрифт
                 if word_height > max_h:
                     word_fits = False
                     break
@@ -258,13 +248,12 @@ class StickerBuilder:
                 initial_size -= 2
                 continue
 
-            # Распределяем слова по вертикальным колонкам
             columns = []
             current_column = []
             current_height = 0
 
             for word in words:
-                # Вычисляем высоту слова
+
                 word_height = 0
                 for char in word:
                     char_w, char_h = self._text_size(char, font)
@@ -272,25 +261,22 @@ class StickerBuilder:
                 if word:
                     word_height -= line_spacing
 
-                # Если слово не помещается в текущую колонку, начинаем новую
                 if current_height + word_height > max_h:
-                    if current_column:  # Если в текущей колонке уже есть слова
+                    if current_column:
                         columns.append(current_column)
                         current_column = [word]
                         current_height = word_height
                     else:
-                        # Если слово одно не помещается - уменьшаем шрифт
+
                         word_fits = False
                         break
                 else:
                     current_column.append(word)
-                    current_height += word_height + line_spacing  # + отступ между словами
+                    current_height += word_height + line_spacing
 
-            # Добавляем последнюю колонку
             if current_column:
                 columns.append(current_column)
 
-            # Проверяем ширину - если колонок слишком много, уменьшаем шрифт
             if not word_fits:
                 initial_size -= 2
                 continue
@@ -301,7 +287,6 @@ class StickerBuilder:
             )
             total_width_needed = len(columns) * max_char_width + (len(columns) - 1) * line_spacing
 
-            # Если текст достигает середины изображения - уменьшаем шрифт
             if total_width_needed > max_w * 0.5:
                 initial_size -= 2
                 continue
@@ -312,12 +297,11 @@ class StickerBuilder:
             else:
                 initial_size -= 2
         else:
-            # Если не удалось подобрать шрифт, используем минимальный
+
             font = safe_font(self.default_font, 6)
             initial_size = 6
             line_spacing = int(6 * self.line_spacing_multiplier)
 
-            # Форсируем создание колонок с минимальным шрифтом
             columns = []
             current_column = []
             current_height = 0
@@ -348,7 +332,7 @@ class StickerBuilder:
                 columns.append(current_column)
             final_columns = columns
 
-        # Определяем стартовую позицию по X
+
         max_char_width = max(
             [self._text_size(char, font)[0] for column in final_columns for word in column for char in word],
             default=0
@@ -361,14 +345,11 @@ class StickerBuilder:
         else:  # left
             x_start = left
 
-        # Обеспечиваем чтобы текст не выходил за границы
         x_start = max(left, min(x_start, right - total_width))
 
-        # Рисуем каждую колонку
         for col_index, column in enumerate(final_columns):
             x = x_start + col_index * column_width
 
-            # Центрируем текст по вертикали в колонке
             total_column_height = 0
             for word in column:
                 word_height = 0
@@ -377,34 +358,33 @@ class StickerBuilder:
                     word_height += char_h + line_spacing
                 if word:
                     word_height -= line_spacing
-                total_column_height += word_height + line_spacing  # + отступ между словами
+                total_column_height += word_height + line_spacing
 
             if column:
-                total_column_height -= line_spacing  # Убираем последний лишний отступ
+                total_column_height -= line_spacing
 
             if total_column_height < max_h:
                 y_start = top + (max_h - total_column_height) // 2
             else:
                 y_start = top
 
-            # Рисуем слова в колонке
+
             y = y_start
             for word_index, word in enumerate(column):
                 for char_index, char in enumerate(word):
                     char_w, char_h = self._text_size(char, font)
 
-                    # Центрируем символ по горизонтали в колонке
+
                     char_x = x + (max_char_width - char_w) // 2
 
-                    # Проверяем границы
                     if (char_x >= left and char_x + char_w <= right and
                             y >= top and y + char_h <= bottom):
                         self._draw_outline_text((char_x, y), char, font, self.fill_color)
 
-                    # Переходим к следующему символу
+
                     y += char_h + line_spacing
 
-                # Добавляем дополнительный отступ между словами (кроме последнего слова в колонке)
+
                 if word_index < len(column) - 1:
                     y += line_spacing
 
@@ -423,9 +403,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[InlineKeyboardButton(f"{GROUP_EMOJIS[g]} {g}", callback_data=f"group_{g}")] for g in GROUPS]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    # Проверяем, есть ли callback_query (нажатие кнопки) или это команда /start
     if update.callback_query:
-        # Если сообщение было удалено, отправляем новое
+
         try:
             await update.callback_query.edit_message_text("Выбери группу:", reply_markup=reply_markup)
         except Exception:
@@ -457,29 +436,25 @@ async def choose_character(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["character"] = char
     images = list_images_for_character(char)
 
-    # Создаем клавиатуру с кнопками в два столбца
     keyboard = []
     for i in range(0, len(images), 2):
         row = []
-        # Первая кнопка в ряду
+
         row.append(InlineKeyboardButton(images[i], callback_data=f"img_{images[i]}"))
-        # Вторая кнопка в ряду, если есть
+
         if i + 1 < len(images):
             row.append(InlineKeyboardButton(images[i + 1], callback_data=f"img_{images[i + 1]}"))
         keyboard.append(row)
 
-    # Добавляем кнопку "Назад"
     keyboard.append([InlineKeyboardButton("< Назад", callback_data=f"back_to_chars_{context.user_data['group']}")])
 
     await query.edit_message_text(f"Персонаж: *{char}*\nВыбери изображение:",
                                   reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
     return CHOOSE_IMAGE
 
-
-# Добавьте эту новую функцию для возврата к персонажам группы
 async def back_to_characters(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    group = query.data.split("_", 3)[3]  # Получаем группу из callback_data
+    group = query.data.split("_", 3)[3]
     context.user_data["group"] = group
     available = [c for c in GROUPS[group] if list_images_for_character(c)]
     keyboard = [[InlineKeyboardButton(char, callback_data=f"char_{char}")] for char in available]
@@ -489,7 +464,6 @@ async def back_to_characters(update: Update, context: ContextTypes.DEFAULT_TYPE)
     return CHOOSE_CHARACTER
 
 
-# Выбор персонажа
 async def choose_image(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -531,18 +505,16 @@ async def confirm_image_choice(update: Update, context: ContextTypes.DEFAULT_TYP
         group = context.user_data["group"]
         images = list_images_for_character(char)
 
-        # Создаем клавиатуру с кнопками в два столбца
         keyboard = []
         for i in range(0, len(images), 2):
             row = []
-            # Первая кнопка в ряду
+
             row.append(InlineKeyboardButton(images[i], callback_data=f"img_{images[i]}"))
-            # Вторая кнопка в ряду, если есть
+
             if i + 1 < len(images):
                 row.append(InlineKeyboardButton(images[i + 1], callback_data=f"img_{images[i + 1]}"))
             keyboard.append(row)
 
-        # Добавляем кнопку "Назад"
         keyboard.append([InlineKeyboardButton("< Назад", callback_data=f"back_to_chars_{group}")])
 
         await query.message.reply_text(f"Персонаж: *{char}*\nВыбери изображение:",
@@ -594,7 +566,6 @@ async def handle_position_choice(update: Update, context: ContextTypes.DEFAULT_T
     pos = query.data.split("_", 1)[1]
     context.user_data["position"] = pos
 
-    # Удаляем сообщение с кнопками выбора положения
     try:
         await query.message.delete()
     except Exception:
@@ -618,7 +589,7 @@ async def generate_and_send(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if orient == "horizontal":
             builder.draw_horizontal(text, size, position=pos, use_margin=False)
         elif orient == "vertical":
-            # Передаем позицию (left/right) в метод draw_vertical
+
             builder.draw_vertical(text, size, position=pos, use_margin=False)
 
         out_path = builder.save_temp(prefix=f"{char}_sticker_")
@@ -630,17 +601,17 @@ async def generate_and_send(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=InlineKeyboardMarkup([
                     [InlineKeyboardButton("Изменить", callback_data="edit_sticker"),
                      InlineKeyboardButton("Создать новый", callback_data="create_new")]
-                    # Добавлена кнопка "Создать новый"
+
                 ])
             )
-        # Сохраняем информацию о готовом стикере
+
         context.user_data["sticker_message_id"] = message.message_id
         context.user_data["sticker_file_path"] = out_path
-        context.user_data["last_sticker_message"] = message  # Сохраняем сообщение для возврата
+        context.user_data["last_sticker_message"] = message
     except Exception as e:
         logger.exception(e)
         await query.message.reply_text(f"Ошибка: {e}")
-        # Если есть временный файл - удаляем его при ошибке
+
         if "sticker_file_path" in context.user_data:
             try:
                 os.remove(context.user_data["sticker_file_path"])
@@ -654,17 +625,15 @@ async def create_new_sticker(update: Update, context: ContextTypes.DEFAULT_TYPE)
     query = update.callback_query
     await query.answer()
 
-    # Очищаем временные файлы
     if "sticker_file_path" in context.user_data:
         try:
             os.remove(context.user_data["sticker_file_path"])
         except:
             pass
 
-    # Очищаем user_data для нового создания
     context.user_data.clear()
 
-    # Запускаем процесс заново
+
     keyboard = [[InlineKeyboardButton(f"{GROUP_EMOJIS[g]} {g}", callback_data=f"group_{g}")] for g in GROUPS]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -676,16 +645,13 @@ async def edit_sticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    # Сохраняем ссылку на сообщение со стикером перед удалением
     sticker_message = context.user_data.get("last_sticker_message")
 
-    # Удаляем предыдущее сообщение с файлом
     try:
         await query.message.delete()
     except Exception:
         pass
 
-    # Показываем меню редактирования
     keyboard = [
         [InlineKeyboardButton("Текст", callback_data="edit_text")],
         [InlineKeyboardButton("Размер шрифта", callback_data="edit_font_size")],
@@ -704,13 +670,11 @@ async def edit_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    # Удаляем сообщение с меню редактирования
     try:
         await query.message.delete()
     except Exception:
         pass
 
-    # Переходим в состояние EDIT_TEXT для ввода нового текста
     await query.message.reply_text("Введи новый текст:")
     return EDIT_TEXT
 
@@ -721,7 +685,6 @@ async def handle_edit_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         new_text = update.message.text
         context.user_data["text"] = new_text
 
-        # Генерируем новый стикер с обновленным текстом
 
         char = context.user_data["character"]
         img_name = context.user_data["image"]
@@ -737,7 +700,6 @@ async def handle_edit_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif orient == "vertical":
             builder.draw_vertical(new_text, font_size, position=pos, use_margin=False)
 
-        # Удаляем старый временный файл
         if "sticker_file_path" in context.user_data:
             try:
                 os.remove(context.user_data["sticker_file_path"])
@@ -757,7 +719,6 @@ async def handle_edit_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 ])
             )
 
-        # Обновляем информацию о готовом стикере
         context.user_data["sticker_message_id"] = message.message_id
         context.user_data["sticker_file_path"] = out_path
         context.user_data["last_sticker_message"] = message
@@ -774,13 +735,11 @@ async def edit_font_size(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    # Удаляем сообщение с меню редактирования
     try:
         await query.message.delete()
     except Exception:
         pass
 
-    # Переходим в состояние EDIT_FONT_SIZE для ввода нового размера шрифта
     await query.message.reply_text("Введи новый размер шрифта (например, 20):")
     return EDIT_FONT_SIZE
 
@@ -792,7 +751,6 @@ async def handle_edit_font_size(update: Update, context: ContextTypes.DEFAULT_TY
         new_font_size = 40 if text == "default" else max(6, int(text))
         context.user_data["font_size"] = new_font_size
 
-        # Генерируем новый стикер с обновленным размером шрифта
 
         char = context.user_data["character"]
         img_name = context.user_data["image"]
@@ -808,7 +766,6 @@ async def handle_edit_font_size(update: Update, context: ContextTypes.DEFAULT_TY
         elif orient == "vertical":
             builder.draw_vertical(text, new_font_size, position=pos, use_margin=False)
 
-        # Удаляем старый временный файл
         if "sticker_file_path" in context.user_data:
             try:
                 os.remove(context.user_data["sticker_file_path"])
@@ -828,7 +785,6 @@ async def handle_edit_font_size(update: Update, context: ContextTypes.DEFAULT_TY
                 ])
             )
 
-        # Обновляем информацию о готовом стикере
         context.user_data["sticker_message_id"] = message.message_id
         context.user_data["sticker_file_path"] = out_path
         context.user_data["last_sticker_message"] = message
@@ -848,13 +804,11 @@ async def edit_orientation(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    # Удаляем сообщение с меню редактирования
     try:
         await query.message.delete()
     except Exception:
         pass
 
-    # Возвращаем к выбору ориентации, сохраняя все предыдущие настройки
     keyboard = [
         [InlineKeyboardButton("Горизонтально", callback_data="orient_horizontal")],
         [InlineKeyboardButton("Вертикально", callback_data="orient_vertical")],
@@ -867,18 +821,16 @@ async def back_to_sticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    # Удаляем сообщение с меню редактирования
     try:
         await query.message.delete()
     except Exception:
         pass
 
-    # Восстанавливаем оригинальный стикер из временного файла
     sticker_file_path = context.user_data.get("sticker_file_path")
     if sticker_file_path and os.path.exists(sticker_file_path):
         char = context.user_data["character"]
         orient = context.user_data["orientation"]
-        img_name = context.user_data["image"]  # Добавьте эту строку
+        img_name = context.user_data["image"]
 
         with open(sticker_file_path, "rb") as f:
             message = await query.message.reply_document(
@@ -890,11 +842,11 @@ async def back_to_sticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
                      InlineKeyboardButton("Создать новый", callback_data="create_new")]
                 ])
             )
-        # Обновляем информацию о сообщении
+
         context.user_data["last_sticker_message"] = message
         context.user_data["sticker_message_id"] = message.message_id
     else:
-        # Если файл не сохранился, пересоздаем стикер
+
         await query.message.reply_text("Восстанавливаю стикер...")
         return await generate_and_send(update, context)
 
@@ -902,7 +854,7 @@ async def back_to_sticker(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Очищаем временные файлы при отмене
+
     if "sticker_file_path" in context.user_data:
         try:
             os.remove(context.user_data["sticker_file_path"])
@@ -933,7 +885,7 @@ def main():
             ],
             CHOOSE_IMAGE: [
                 CallbackQueryHandler(choose_image, pattern="^img_"),
-                # Изменено: добавлен обработчик для возврата к персонажам
+    
                 CallbackQueryHandler(back_to_characters, pattern="^back_to_chars_")
             ],
             CONFIRM_IMAGE: [
@@ -950,12 +902,12 @@ def main():
                 CallbackQueryHandler(back_to_sticker, pattern="^back_to_sticker$"),
                 CallbackQueryHandler(edit_sticker, pattern="^edit_sticker$"),
                 CallbackQueryHandler(create_new_sticker, pattern="^create_new$")
-                # Добавлен обработчик для кнопки "Создать новый"
+
             ],
-            EDIT_FONT_SIZE: [  # Добавлено новое состояние для обработки изменения размера шрифта
+            EDIT_FONT_SIZE: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_edit_font_size)
             ],
-            EDIT_TEXT: [  # Добавлено новое состояние для обработки изменения текста
+            EDIT_TEXT: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, handle_edit_text)
             ],
         },
@@ -966,4 +918,5 @@ def main():
 
 
 if __name__ == "__main__":
+
     main()
